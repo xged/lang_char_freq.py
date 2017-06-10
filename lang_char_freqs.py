@@ -78,15 +78,14 @@ class CommitCharFreqs():
         print()
         self.append(repourl, charfreqs, matched_skip, matched_add)
 
-    def add_repourl(self, repourl: RepoUrl, commit_limit: int=None, char_limit: int=None, matched_skip: bool=None, matched_add: bool=None) -> None:
-        if commit_limit is None: commit_limit = MAXINT
+    def add_repourl(self, repourl: RepoUrl, commit_limit: int=None, char_limit: int=None, matched_skip: bool=None, matched_add: bool=None, silent: bool=None) -> None:
         with TemporaryDirectory() as tempdir:
-            cmd.git['clone', repourl, tempdir, '--depth', commit_limit, '--shallow-submodules'] & FG
+            git_clone(repourl, Path(tempdir), commit_limit, silent)
             self.add_dir(Path(tempdir), commit_limit, char_limit, matched_skip, matched_add)
 
-    def add_repourls_lastupdated(self, npages: int=None, perpage: int=None, commit_limit: int=None, char_limit: int=None, matched_skip: bool=None, matched_add: bool=None) -> None:
+    def add_repourls_lastupdated(self, npages: int=None, perpage: int=None, commit_limit: int=None, char_limit: int=None, matched_skip: bool=None, matched_add: bool=None, silent: bool=None) -> None:
         for repourl in fetch_repourls_lastupdated(npages, perpage):
-            self.add_repourl(repourl, commit_limit, char_limit, matched_skip, matched_add)
+            self.add_repourl(repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
 
     def add_repourls_lastupdated_max(self, *args, **kwargs) -> None:
         self.add_repourls_lastupdated(10, 100, *args, **kwargs)
@@ -129,6 +128,13 @@ class CommitCharFreqs():
         for cf in self.d.values():
             charfreqs.add(cf)
         return charfreqs
+
+def git_clone(repourl: RepoUrl, dir: Path, commit_limit: int=None, silent: bool=None):
+    if commit_limit is None: commit_limit = MAXINT
+    if not silent:
+        cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules'] & FG
+    else:
+        cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules']()
 
 def fetch_repourls_lastupdated(npages: int=None, perpage: int=None) -> Set[RepoUrl]:
     if npages is None: npages = 1
