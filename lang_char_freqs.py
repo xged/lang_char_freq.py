@@ -149,9 +149,6 @@ def fetch_repourls_lastupdated(npages: int=None, perpage: int=None) -> Set[RepoU
     repourls = set()
     for pagenr in range(1, npages + 1):
         r = requests.get('https://api.github.com/search/repositories', {'q': 'stars:>0', 'sort': 'updated', 'per_page': perpage, 'page': pagenr})
-        for item in r.json()['items']:
-            try:
-                repourls.add(item['clone_url'])
-            except KeyError:
-                warn('', RuntimeWarning)  #?
+        for item in r.json().get('items', {}):
+            repourls.add(item.get('clone_url', None))
     return repourls
