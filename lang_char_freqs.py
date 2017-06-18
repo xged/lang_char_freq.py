@@ -16,8 +16,7 @@ MAXINT = 10**9
 
 class CharFreqs():
     def __init__(self, d: Dict[FExten, Counter]=None) -> None:
-        if d is None: d = {}
-        self.d = d
+        self.d = d or {}
 
     def append(self, fexten: FExten, counter: Counter) -> None:
         self.d[fexten] = self.d.get(fexten, Counter()) + counter
@@ -44,10 +43,8 @@ class CharFreqs():
 
 class CommitCharFreqs():
     def __init__(self, d: Dict[RepoUrl, CharFreqs]=None, store: Path=None) -> None:
-        if d is None: d = {}
-        if store is None: store = Path('.CommitCharFreqs-store.pkl')
-        self.d = d
-        self.store = store
+        self.d = d or {}
+        self.store = store or Path('.CommitCharFreqs-store.pkl')
 
     def append(self, repourl: RepoUrl, charfreqs: CharFreqs, matched_skip: bool=None, matched_add: bool=None) -> None:
         if repourl in self.d:
@@ -63,8 +60,8 @@ class CommitCharFreqs():
             self.append(repourl, ccf.d[repourl], matched_skip, matched_add)
 
     def add_dir(self, dir: Path, commit_limit: int=None, char_limit: int=None, matched_skip: bool=None, matched_add: bool=None, silent: bool=None) -> None:
-        if commit_limit is None: commit_limit = MAXINT
-        if char_limit is None: char_limit = MAXINT
+        commit_limit = commit_limit or MAXINT
+        char_limit = char_limit or MAXINT
         repourl = cmd.git['-C', str(dir), 'remote', 'get-url', 'origin']()
         print(repourl, ':')
         charfreqs = CharFreqs()
@@ -92,18 +89,18 @@ class CommitCharFreqs():
         self.add_repourls_lastupdated(10, 100, *args, **kwargs)
 
     def load(self, f: Path=None) -> 'CommitCharFreqs':
-        if f is None: f = self.store
+        f = f or self.store
         with f.open('rb') as file:
             return pickle.load(file)
 
     def dump(self, f: Path=None) -> None:
-        if f is None: f = self.store
+        f = f or self.store
         print("Writing to {!r}...".format(f))
         with f.open('wb') as file:
             pickle.dump(self, file)
 
     def save(self, f: Path=None, matched_skip: bool=None, matched_add: bool=None) -> None:
-        if f is None: f = self.store
+        f = f or self.store
         if f.exists():
             self.add(self.load(f), matched_skip, matched_add)
         self.dump(f)
@@ -131,15 +128,15 @@ class CommitCharFreqs():
         return charfreqs
 
 def git_clone(repourl: RepoUrl, dir: Path, commit_limit: int=None, silent: bool=None):
-    if commit_limit is None: commit_limit = MAXINT
+    commit_limit = commit_limit or MAXINT
     if not silent:
         cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules'] & FG
     else:
         cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules']()
 
 def fetch_repourls_lastupdated(npages: int=None, perpage: int=None) -> Set[RepoUrl]:
-    if npages is None: npages = 1
-    if perpage is None: perpage = 1
+    npages = npages or 1
+    perpage = perpage or 1
     assert npages >= 1
     assert perpage in range(1, 100+1)
     nresults = npages * perpage
