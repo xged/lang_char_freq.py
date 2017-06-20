@@ -69,24 +69,23 @@ class CommitCharFreqs():
                 charfreqs.append(Path(diff.header.new_path).suffix, Counter('\n'.join(addedlines[-char_limit:])))
         self.append(repourl, charfreqs, matched_skip, matched_add)
 
-    def add_dir(self, dir: Path, repourl: RepoUrl=None, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
+    def add_dir(self, dir: Path, repourl: RepoUrl=None, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False) -> None:
         repourl = repourl or cmd.git['-C', str(dir), 'remote', 'get-url', 'origin']()
         print(repourl, ':')
         commits = cmd.git['-C', str(dir), 'log', '-n', commit_limit, '--pretty=format:%H']().split()
         for i, commit in enumerate(commits):
             self.add_commit(dir, commit, repourl, commit_limit, char_limit)
-            if not silent:
-                print(i+1, "commits crunched.", end='\r')
+            print(i+1, "commits crunched.", end='\r')
         print()
 
-    def add_repourl(self, repourl: RepoUrl, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
+    def add_repourl(self, repourl: RepoUrl, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False) -> None:
         with TemporaryDirectory() as tempdir:
-            git_clone(repourl, Path(tempdir), commit_limit, silent)
-            self.add_dir(Path(tempdir), repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
+            cmd.git['clone', repourl, Path(tempdir), '--depth', commit_limit, '--shallow-submodules'] & FG
+            self.add_dir(Path(tempdir), repourl, commit_limit, char_limit, matched_skip, matched_add)
 
-    def add_repourls_lastupdated(self, npages=1, perpage=1, max=False, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
+    def add_repourls_lastupdated(self, npages=1, perpage=1, max=False, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False) -> None:
         for repourl in fetch_repourls_lastupdated(npages, perpage):
-            self.add_repourl(repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
+            self.add_repourl(repourl, commit_limit, char_limit, matched_skip, matched_add)
 
     def load(self, f: Path=None) -> 'CommitCharFreqs':
         f = f or self.store
@@ -126,12 +125,6 @@ class CommitCharFreqs():
         for cf in self.d.values():
             charfreqs.add(cf)
         return charfreqs
-
-def git_clone(repourl: RepoUrl, dir: Path, commit_limit=MAXINT, silent=False):
-    if not silent:
-        cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules'] & FG
-    else:
-        cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules']()
 
 def fetch_repourls_lastupdated(npages=1, perpage=1, max=False) -> Set[RepoUrl]:
     if max:
