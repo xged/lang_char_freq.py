@@ -11,6 +11,7 @@ from whatthepatch import parse_patch
 
 RepoUrl = str  # Github.com
 FExten = str  # file extension (".py")
+Hash = str
 
 MAXINT = 10**9
 
@@ -59,25 +60,29 @@ class CommitCharFreqs():
         for repourl in ccf.d:
             self.append(repourl, ccf.d[repourl], matched_skip, matched_add)
 
-    def add_dir(self, dir: Path, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
-        repourl = cmd.git['-C', str(dir), 'remote', 'get-url', 'origin']()
-        print(repourl, ':')
+    def add_commit(self, dir: Path, commit: Hash, repourl: RepoUrl=None, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False):
+        repourl = repourl or cmd.git['-C', str(dir), 'remote', 'get-url', 'origin']()
         charfreqs = CharFreqs()
+        for diff in parse_patch(cmd.git['-C', str(dir), 'diff', commit]()):
+            if diff.changes:
+                addedlines = [l for loc, _, l in diff.changes if loc == None]
+                charfreqs.append(Path(diff.header.new_path).suffix, Counter('\n'.join(addedlines[-char_limit:])))
+        self.append(repourl, charfreqs, matched_skip, matched_add)
+
+    def add_dir(self, dir: Path, repourl: RepoUrl=None, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
+        repourl = repourl or cmd.git['-C', str(dir), 'remote', 'get-url', 'origin']()
+        print(repourl, ':')
         commits = cmd.git['-C', str(dir), 'log', '-n', commit_limit, '--pretty=format:%H']().split()
         for i, commit in enumerate(commits):
-            for diff in parse_patch(cmd.git['-C', str(dir), 'diff', commit]()):
-                if diff.changes:
-                    addedlines = [l for loc, _, l in diff.changes if loc == None]
-                    charfreqs.append(Path(diff.header.new_path).suffix, Counter('\n'.join(addedlines[-char_limit:])))
+            self.add_commit(dir, commit, repourl, commit_limit, char_limit)
             if not silent:
                 print(i+1, "commits crunched.", end='\r')
         print()
-        self.append(repourl, charfreqs, matched_skip, matched_add)
 
     def add_repourl(self, repourl: RepoUrl, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
         with TemporaryDirectory() as tempdir:
             git_clone(repourl, Path(tempdir), commit_limit, silent)
-            self.add_dir(Path(tempdir), commit_limit, char_limit, matched_skip, matched_add, silent)
+            self.add_dir(Path(tempdir), repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
 
     def add_repourls_lastupdated(self, npages=1, perpage=1, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
         for repourl in fetch_repourls_lastupdated(npages, perpage):
