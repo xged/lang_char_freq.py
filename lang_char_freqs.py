@@ -84,12 +84,9 @@ class CommitCharFreqs():
             git_clone(repourl, Path(tempdir), commit_limit, silent)
             self.add_dir(Path(tempdir), repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
 
-    def add_repourls_lastupdated(self, npages=1, perpage=1, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
+    def add_repourls_lastupdated(self, npages=1, perpage=1, max=False, commit_limit=MAXINT, char_limit=MAXINT, matched_skip=False, matched_add=False, silent=False) -> None:
         for repourl in fetch_repourls_lastupdated(npages, perpage):
             self.add_repourl(repourl, commit_limit, char_limit, matched_skip, matched_add, silent)
-
-    def add_repourls_lastupdated_max(self, *args, **kwargs) -> None:
-        self.add_repourls_lastupdated(10, 100, *args, **kwargs)
 
     def load(self, f: Path=None) -> 'CommitCharFreqs':
         f = f or self.store
@@ -136,12 +133,15 @@ def git_clone(repourl: RepoUrl, dir: Path, commit_limit=MAXINT, silent=False):
     else:
         cmd.git['clone', repourl, dir, '--depth', commit_limit, '--shallow-submodules']()
 
-def fetch_repourls_lastupdated(npages=1, perpage=1) -> Set[RepoUrl]:
-    assert npages >= 1
-    assert perpage in range(1, 100+1)
-    nresults = npages * perpage
-    if nresults > 1000:
-        warn('Github API limit: 1,000 search results', RuntimeWarning)
+def fetch_repourls_lastupdated(npages=1, perpage=1, max=False) -> Set[RepoUrl]:
+    if max:
+        npages = 10; perpage = 100
+        nresults = 1000
+    else:
+        assert npages >= 1 and perpage in range(1, 100+1)
+        nresults = npages * perpage
+        if nresults > 1000:
+            warn('Github API limit: 1,000 search results', RuntimeWarning)
     print('Fetching {} recently updated Github repo urls...'.format(nresults))
     repourls = set()
     for pagenr in range(1, npages + 1):
